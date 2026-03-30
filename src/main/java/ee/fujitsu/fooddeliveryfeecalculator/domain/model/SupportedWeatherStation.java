@@ -35,4 +35,10 @@ public enum SupportedWeatherStation {
             .filter(station -> station.stationName.equals(stationName))
             .findFirst();
     }
+
+    public static Optional<SupportedWeatherStation> fromCity(SupportedCity city) {
+        return Arrays.stream(values())
+            .filter(station -> station.city == city)
+            .findFirst();
+    }
 }
