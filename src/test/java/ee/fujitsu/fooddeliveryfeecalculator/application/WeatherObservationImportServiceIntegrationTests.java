@@ -1,6 +1,7 @@
 package ee.fujitsu.fooddeliveryfeecalculator.application;
 
 import ee.fujitsu.fooddeliveryfeecalculator.domain.model.SupportedCity;
+import ee.fujitsu.fooddeliveryfeecalculator.domain.model.SupportedWeatherStation;
 import ee.fujitsu.fooddeliveryfeecalculator.domain.model.WeatherFeedObservation;
 import ee.fujitsu.fooddeliveryfeecalculator.domain.port.WeatherObservationFeedClient;
 import ee.fujitsu.fooddeliveryfeecalculator.domain.port.WeatherObservationRepository;
@@ -8,8 +9,8 @@ import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
-import org.springframework.boot.test.mock.mockito.MockBean;
 import org.springframework.jdbc.core.JdbcTemplate;
+import org.springframework.test.context.bean.override.mockito.MockitoBean;
 
 import java.math.BigDecimal;
 import java.time.Instant;
@@ -31,7 +32,7 @@ class WeatherObservationImportServiceIntegrationTests {
     @Autowired
     private JdbcTemplate jdbcTemplate;
 
-    @MockBean
+    @MockitoBean
     private WeatherObservationFeedClient weatherObservationFeedClient;
 
     @BeforeEach
@@ -43,32 +44,42 @@ class WeatherObservationImportServiceIntegrationTests {
     void shouldPersistImportedObservationsIntoWeatherHistory() {
         when(weatherObservationFeedClient.fetchSupportedObservations()).thenReturn(List.of(
             feedObservation("Tallinn-Harku", "26038", "-0.4", "0.4", "Overcast"),
-            feedObservation("Tartu-Tõravere", "26242", "5.7", "0.6", "Cloudy with clear spells"),
-            feedObservation("Pärnu", "41803", "3.8", "2.4", "Light rain")
+            feedObservation(SupportedWeatherStation.TARTU_TORAVERE.stationName(), "26242", "5.7", "0.6",
+                "Cloudy with clear spells"),
+            feedObservation(SupportedWeatherStation.PARNU.stationName(), "41803", "3.8", "2.4", "Light rain")
         ));
 
         int importedObservationCount = weatherObservationImportService.importLatestObservations();
 
         assertThat(importedObservationCount).isEqualTo(3);
         assertThat(weatherObservationRepository.findLatestByStationName("Tallinn-Harku")).isPresent();
-        assertThat(weatherObservationRepository.findLatestByStationName("Tartu-Tõravere")).isPresent();
-        assertThat(weatherObservationRepository.findLatestByStationName("Pärnu")).isPresent();
+        assertThat(weatherObservationRepository.findLatestByStationName(SupportedWeatherStation.TARTU_TORAVERE.stationName()))
+            .isPresent();
+        assertThat(weatherObservationRepository.findLatestByStationName(SupportedWeatherStation.PARNU.stationName()))
+            .isPresent();
     }
 
     @Test
     void shouldRollbackTheImportWhenPersistenceFailsMidFlight() {
         when(weatherObservationFeedClient.fetchSupportedObservations()).thenReturn(List.of(
             feedObservation("Tallinn-Harku", "26038", "-0.4", "0.4", "Overcast"),
-            feedObservation("Tartu-Tõravere-Station-Name-That-Is-Deliberately-Much-Longer-Than-One-Hundred-Characters-To-Trigger-A-Database-Failure",
-                "26242", "5.7", "0.6", "Cloudy with clear spells"),
-            feedObservation("Pärnu", "41803", "3.8", "2.4", "Light rain")
+            feedObservation(
+                SupportedWeatherStation.TARTU_TORAVERE.stationName()
+                    + "-Station-Name-That-Is-Deliberately-Much-Longer-Than-One-Hundred-Characters-To-Trigger-A-Database-Failure",
+                "26242",
+                "5.7",
+                "0.6",
+                "Cloudy with clear spells"
+            ),
+            feedObservation(SupportedWeatherStation.PARNU.stationName(), "41803", "3.8", "2.4", "Light rain")
         ));
 
         assertThatThrownBy(() -> weatherObservationImportService.importLatestObservations())
             .isInstanceOf(RuntimeException.class);
 
         assertThat(weatherObservationRepository.findAllByStationNameOrderByObservedAtAsc("Tallinn-Harku")).isEmpty();
-        assertThat(weatherObservationRepository.findAllByStationNameOrderByObservedAtAsc("Pärnu")).isEmpty();
+        assertThat(weatherObservationRepository.findAllByStationNameOrderByObservedAtAsc(SupportedWeatherStation.PARNU.stationName()))
+            .isEmpty();
     }
 
     private WeatherFeedObservation feedObservation(String stationName,
@@ -78,7 +89,7 @@ class WeatherObservationImportServiceIntegrationTests {
                                                    String phenomenon) {
         SupportedCity city = switch (stationName) {
             case "Tallinn-Harku" -> SupportedCity.TALLINN;
-            case "Pärnu" -> SupportedCity.PARNU;
+            case "P\u00E4rnu" -> SupportedCity.PARNU;
             default -> SupportedCity.TARTU;
         };
 
