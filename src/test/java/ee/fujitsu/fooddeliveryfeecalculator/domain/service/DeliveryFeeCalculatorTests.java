@@ -44,6 +44,18 @@ class DeliveryFeeCalculatorTests {
     }
 
     @Test
+    void shouldApplyHalfEuroExtraAtTemperatureBoundaryOfMinusTenDegrees() {
+        DeliveryFee deliveryFee = deliveryFeeCalculator.calculate(
+            SupportedCity.TARTU,
+            VehicleType.SCOOTER,
+            observation("-10.0", "4.0", "Clear")
+        );
+
+        assertThat(deliveryFee.weatherExtraFee()).isEqualByComparingTo("0.50");
+        assertThat(deliveryFee.totalFee()).isEqualByComparingTo("4.00");
+    }
+
+    @Test
     void shouldApplyAirTemperatureWindAndPhenomenonExtraFeeForBike() {
         DeliveryFee deliveryFee = deliveryFeeCalculator.calculate(
             SupportedCity.PARNU,
@@ -53,6 +65,30 @@ class DeliveryFeeCalculatorTests {
 
         assertThat(deliveryFee.weatherExtraFee()).isEqualByComparingTo("2.50");
         assertThat(deliveryFee.totalFee()).isEqualByComparingTo("5.50");
+    }
+
+    @Test
+    void shouldApplyWindExtraFeeAtBoundaryOfTenMetersPerSecond() {
+        DeliveryFee deliveryFee = deliveryFeeCalculator.calculate(
+            SupportedCity.TALLINN,
+            VehicleType.BIKE,
+            observation("3.0", "10.0", "Clear")
+        );
+
+        assertThat(deliveryFee.weatherExtraFee()).isEqualByComparingTo("0.50");
+        assertThat(deliveryFee.totalFee()).isEqualByComparingTo("4.50");
+    }
+
+    @Test
+    void shouldAllowBikeAtBoundaryOfTwentyMetersPerSecond() {
+        DeliveryFee deliveryFee = deliveryFeeCalculator.calculate(
+            SupportedCity.TALLINN,
+            VehicleType.BIKE,
+            observation("3.0", "20.0", "Clear")
+        );
+
+        assertThat(deliveryFee.weatherExtraFee()).isEqualByComparingTo("0.50");
+        assertThat(deliveryFee.totalFee()).isEqualByComparingTo("4.50");
     }
 
     @Test

@@ -1,5 +1,6 @@
 package ee.fujitsu.fooddeliveryfeecalculator.api;
 
+import ee.fujitsu.fooddeliveryfeecalculator.domain.model.SupportedWeatherStation;
 import ee.fujitsu.fooddeliveryfeecalculator.domain.model.WeatherObservation;
 import ee.fujitsu.fooddeliveryfeecalculator.domain.port.WeatherObservationRepository;
 import org.junit.jupiter.api.BeforeEach;
@@ -65,6 +66,27 @@ class DeliveryFeeControllerTests {
     }
 
     @Test
+    void shouldAcceptDiacriticsAndVehicleAliasInRequestParameters() throws Exception {
+        weatherObservationRepository.save(observation(
+            SupportedWeatherStation.PARNU.stationName(),
+            "41803",
+            "-2.0",
+            "4.0",
+            "Light rain",
+            "2026-03-30T20:15:00Z"
+        ));
+
+        mockMvc.perform(get("/api/v1/delivery-fee")
+                .queryParam("city", "P\u00E4rnu")
+                .queryParam("vehicleType", "bicycle"))
+            .andExpect(status().isOk())
+            .andExpect(jsonPath("$.city").value("Parnu"))
+            .andExpect(jsonPath("$.vehicleType").value("BIKE"))
+            .andExpect(jsonPath("$.deliveryFee").value(4.0))
+            .andExpect(jsonPath("$.observedAt").value("2026-03-30T20:15:00Z"));
+    }
+
+    @Test
     void shouldReturnValidationErrorForUnsupportedCity() throws Exception {
         mockMvc.perform(get("/api/v1/delivery-fee")
                 .queryParam("city", "Narva")
@@ -88,9 +110,21 @@ class DeliveryFeeControllerTests {
     }
 
     @Test
+    void shouldReturnValidationErrorForUnsupportedVehicleType() throws Exception {
+        mockMvc.perform(get("/api/v1/delivery-fee")
+                .queryParam("city", "Tallinn")
+                .queryParam("vehicleType", "hoverboard"))
+            .andExpect(status().isBadRequest())
+            .andExpect(jsonPath("$.status").value(400))
+            .andExpect(jsonPath("$.code").value("VALIDATION_ERROR"))
+            .andExpect(jsonPath("$.message").value("Unsupported vehicle type: hoverboard"))
+            .andExpect(jsonPath("$.path").value("/api/v1/delivery-fee"));
+    }
+
+    @Test
     void shouldReturnForbiddenErrorWhenWeatherMakesBikeUnsafe() throws Exception {
         weatherObservationRepository.save(observation(
-            "Tartu-Tõravere",
+            SupportedWeatherStation.TARTU_TORAVERE.stationName(),
             "26242",
             "3.0",
             "21.0",
