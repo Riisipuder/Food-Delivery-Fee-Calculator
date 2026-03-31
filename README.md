@@ -1,6 +1,7 @@
 # Food Delivery Fee Calculator
 
-Spring Boot bootstrap for the Fujitsu Java trial task
+Spring Boot bootstrap for the Fujitsu Java trial task.
+Progress: https://github.com/Riisipuder/Food-Delivery-Fee-Calculator/wiki
 ## Stack
 
 - Java 21
